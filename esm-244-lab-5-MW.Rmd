@@ -1,0 +1,187 @@
+---
+title: "esm-244-lab-5-MW"
+author: "Matthew Warham"
+date: "2/7/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+
+library(tidyverse)
+#install.packages("tseries")
+#install.packages("forecast")
+library(forecast)
+library(tseries)
+
+```
+
+```{r data wrangle}
+
+#US Residential energy consumption values (Jan 1973 - Oct 2017), Trillion BTU (US Energy Information Administration)
+
+energy <- read_csv("energy.csv")
+#View(energy)
+
+```
+
+c. Create 'ts' tiem series data ysing information in teh res_total column from energy
+
+```{r}
+
+res_ts <- ts(energy$res_total, frequency = 12, start = c(1973,1))
+
+res_ts
+
+plot(res_ts) # looks additive
+
+```
+
+
+d. Decompose ts
+
+```{r decompose time series}
+
+res_dc <- decompose(res_ts)
+plot(res_dc)
+
+#Plot Graphs
+#1. Observed data
+#2. moving average trend
+#3. Seasonality
+#4. Residuals
+
+```
+
+e. Other coolw ays to present time series data
+
+```{r}
+
+monthplot(res_ts)
+
+#shows how each month has changed over months over entire series
+# Increase over time during summer months
+
+```
+
+
+```{r}
+
+ggseasonplot(res_ts)
+ggseasonplot(res_ts, polar = TRUE) # puts all data for each year onto plot
+
+```
+
+f. Simple moving averages
+
+```{r}
+
+#forecast::ma()
+
+sma_res <- ma(res_ts, order = 5) #changing window can hav a large impact on the data is viewed
+plot(res_ts)
+lines(sma_res, col = "red")
+
+```
+
+g. ACF (Autocorrelation)
+
+```{r}
+
+res_acf <- acf(res_ts)
+#DRASTIC PEAKS every 12 months or every year
+
+ggtsdisplay(res_ts)
+
+```
+
+i. Holt - Winters - Exponential smoothng methods
+
+```{r}
+
+res_hw <- HoltWinters(res_ts)
+res_hw
+plot(res_hw) #how models looks compared to actual data
+
+
+
+```
+
+
+Now some future forecasting with Holt Winters
+
+```{r}
+
+res_forecast <- forecast(res_hw, h = 60)
+plot(res_forecast)
+
+```
+
+Check Distribution of the residuals
+
+```{r}
+
+hist(res_forecast$residuals)
+
+```
+
+
+Autoregressive integrated moving average (ARIMA) using auto.arima for p,d,q
+
+```{r}
+
+res_pdq <- auto.arima(res_ts)
+res_pdq
+
+#ARIMA(1,0,2)(0,1,1)[12] with drift
+
+
+
+```
+
+
+pdq: [1,0,2], [0,1,1]
+
+Fit ARIMA model using thos epdq values
+
+```{r}
+
+res_arima <- arima(res_ts, order = c(1,0,2), seasonal = list(order = c(0,1,1)))
+res_arima
+
+# Check out he residuals
+par(mfrow = c(1,2))
+hist(res_arima$residuals)
+qqnorm(res_arima$residuals)
+
+```
+
+
+Now forecast with ARIMA outputs
+
+```{r}
+
+forecast_res <- forecast(res_arima, h = 72)
+plot(forecast_res)
+
+```
+
+Now view this in ggplot
+
+```{r}
+
+res_df <- data.frame(forecast_res)
+month_seq <- seq(1,72)
+
+res_df_2 <- data.frame(month_seq, res_df)
+
+#view(res_df_2)
+
+ggplot(res_df_2, aes(x = month_seq, y = Point.Forecast))+
+  geom_line()
+
+```
+
